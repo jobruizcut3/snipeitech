@@ -30,7 +30,7 @@ services:
       - APP_KEY=${APP_KEY:-}
       - APP_URL=https://asset.pupitech.me
       - DB_CONNECTION=mysql
-      - DB_HOST=facultyportfolio-db
+      - DB_HOST=snipeit-db
       - DB_PORT=3306
       - DB_DATABASE=snipeit
       - DB_USERNAME=snipeit_user
@@ -52,9 +52,24 @@ services:
       - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
     networks:
       - snipeit-network
-      - facultyportfolio_default
     depends_on:
+      - snipeit-db
       - redis
+
+  snipeit-db:
+    image: mysql:8.0
+    container_name: snipeit-db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - snipeit-db-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      - MYSQL_DATABASE=snipeit
+      - MYSQL_USER=snipeit_user
+      - MYSQL_PASSWORD=${SNIPEIT_DB_PASSWORD:-change_me_secure_password}
+    networks:
+      - snipeit-network
 
   redis:
     image: redis:7-alpine
@@ -71,11 +86,11 @@ volumes:
     driver: local
   snipeit-uploads:
     driver: local
+  snipeit-db-data:
+    driver: local
   snipeit-redis-data:
     driver: local
 
 networks:
   snipeit-network:
     driver: bridge
-  facultyportfolio_default:
-    external: true
