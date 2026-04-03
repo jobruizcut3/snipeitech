@@ -1,0 +1,81 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: snipeit-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/ssl/cloudflare/cert.pem:/etc/ssl/cloudflare/cert.pem:ro
+      - /etc/ssl/cloudflare/key.pem:/etc/ssl/cloudflare/key.pem:ro
+    networks:
+      - snipeit-network
+    depends_on:
+      - snipeit
+
+  snipeit:
+    image: snipe/snipe-it:latest
+    container_name: snipeit
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - snipeit-data:/var/www/html/storage
+      - snipeit-uploads:/var/www/html/public/uploads
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_KEY=${APP_KEY:-}
+      - APP_URL=https://asset.pupitech.me
+      - DB_CONNECTION=mysql
+      - DB_HOST=facultyportfolio-db
+      - DB_PORT=3306
+      - DB_DATABASE=snipeit
+      - DB_USERNAME=snipeit_user
+      - DB_PASSWORD=${SNIPEIT_DB_PASSWORD:-change_me_secure_password}
+      - DB_PREFIX=${DB_PREFIX:-}
+      - MAIL_DRIVER=${MAIL_DRIVER:-smtp}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_FROM_ADDR=${MAIL_FROM_ADDR:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Snipe-IT}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - SESSION_DRIVER=${SESSION_DRIVER:-redis}
+      - CACHE_DRIVER=${CACHE_DRIVER:-redis}
+      - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
+    networks:
+      - snipeit-network
+      - facultyportfolio_default
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: snipeit-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-change_me_redis_password}
+    volumes:
+      - snipeit-redis-data:/data
+    networks:
+      - snipeit-network
+
+volumes:
+  snipeit-data:
+    driver: local
+  snipeit-uploads:
+    driver: local
+  snipeit-redis-data:
+    driver: local
+
+networks:
+  snipeit-network:
+    driver: bridge
+  facultyportfolio_default:
+    external: true
