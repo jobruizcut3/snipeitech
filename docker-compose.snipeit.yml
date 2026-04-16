@@ -1,0 +1,97 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: snipeit-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/ssl/cloudflare/cert.pem:/etc/ssl/cloudflare/cert.pem:ro
+      - /etc/ssl/cloudflare/key.pem:/etc/ssl/cloudflare/key.pem:ro
+    networks:
+      - snipeit-network
+    depends_on:
+      - snipeit
+
+  snipeit:
+    image: snipe/snipe-it:latest
+    container_name: snipeit
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - snipeit-data:/var/www/html/storage
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_KEY=${APP_KEY:-}
+      - APP_URL=https://asset.pupitech.me
+      - DB_CONNECTION=mysql
+      - DB_HOST=snipeit-db
+      - DB_PORT=3306
+      - DB_DATABASE=snipeit
+      - DB_USERNAME=snipeit_user
+      - DB_PASSWORD=${SNIPEIT_DB_PASSWORD:-change_me_secure_password}
+      - DB_PREFIX=${DB_PREFIX:-}
+      - MAIL_DRIVER=${MAIL_DRIVER:-smtp}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_FROM_ADDR=${MAIL_FROM_ADDR:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Snipe-IT}
+      - MAIL_ENV_FROM_ADDR=${MAIL_ENV_FROM_ADDR:-}
+      - MAIL_ENV_FROM_NAME=${MAIL_ENV_FROM_NAME:-Snipe-IT}
+      - MAIL_REPLYTO_ADDR=${MAIL_REPLYTO_ADDR:-}
+      - MAIL_REPLYTO_NAME=${MAIL_REPLYTO_NAME:-Snipe-IT}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - SESSION_DRIVER=${SESSION_DRIVER:-redis}
+      - CACHE_DRIVER=${CACHE_DRIVER:-redis}
+      - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
+    networks:
+      - snipeit-network
+    depends_on:
+      - snipeit-db
+      - redis
+
+  snipeit-db:
+    image: mysql:8.0
+    container_name: snipeit-db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - snipeit-db-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      - MYSQL_DATABASE=snipeit
+      - MYSQL_USER=snipeit_user
+      - MYSQL_PASSWORD=${SNIPEIT_DB_PASSWORD:-change_me_secure_password}
+    networks:
+      - snipeit-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: snipeit-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - snipeit-redis-data:/data
+    networks:
+      - snipeit-network
+
+volumes:
+  snipeit-data:
+    driver: local
+  snipeit-db-data:
+    driver: local
+  snipeit-redis-data:
+    driver: local
+
+networks:
+  snipeit-network:
+    driver: bridge
